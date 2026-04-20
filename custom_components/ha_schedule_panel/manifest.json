@@ -5,6 +5,7 @@
   "documentation": "https://github.com/TiSocks/ha-schedule-panel",
   "dependencies": ["http", "frontend"],
   "codeowners": ["@TiSocks"],
+  "config_flow": true,
   "requirements": [],
   "iot_class": "calculated"
 }
