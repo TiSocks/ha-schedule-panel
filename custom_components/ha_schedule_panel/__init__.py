@@ -4,6 +4,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components import frontend
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register the custom panel
     _LOGGER.info("Registering HA Schedule Panel in sidebar")
-    hass.components.frontend.async_register_built_in_panel(
+    frontend.async_register_built_in_panel(
+        hass,
         component_name="custom",
         sidebar_title="Schedules",
         sidebar_icon="mdi:calendar-clock",
@@ -52,5 +54,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    hass.components.frontend.async_remove_panel("schedules")
+    frontend.async_remove_panel(hass, "schedules")
     return True
