@@ -3,12 +3,18 @@ import os
 import logging
 from homeassistant.core import HomeAssistant
 
+from homeassistant.config_entries import ConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "ha_schedule_panel"
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the HA Schedule Panel component."""
+    """Set up the component."""
+    return True
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up HA Schedule Panel from a config entry."""
     
     # Get the directory of this integration
     integration_dir = os.path.dirname(__file__)
@@ -40,4 +46,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         },
     )
 
+    return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    hass.components.frontend.async_remove_panel("schedules")
     return True
