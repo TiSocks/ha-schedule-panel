@@ -20,7 +20,7 @@ Because this is a custom integration, you can easily install it using the Home A
 1. Open Home Assistant and navigate to **HACS**.
 2. Click on **Integrations** in the right panel.
 3. Click the three dots in the top right corner and select **Custom repositories**.
-4. In the URL field, paste the link to this GitHub repository.
+4. In the URL field, paste exactly: `https://github.com/TiSocks/ha-schedule-panel`
 5. In the Category dropdown, select **Integration**.
 6. Click **Add**.
 7. Close the custom repositories window and search for "Schedule Panel" in the main HACS search bar.
