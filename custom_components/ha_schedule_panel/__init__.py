@@ -2,8 +2,8 @@
 import os
 import logging
 from homeassistant.core import HomeAssistant
-
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.http import StaticPathConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,11 +22,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register the static path so HA can serve the JS file
     # We serve it at /ha_schedule_panel_static
-    hass.http.register_static_path(
-        f"/{DOMAIN}_static",
-        frontend_dir,
-        cache_headers=False
-    )
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(
+            f"/{DOMAIN}_static",
+            frontend_dir,
+            cache_headers=False
+        )
+    ])
 
     # Register the custom panel
     _LOGGER.info("Registering HA Schedule Panel in sidebar")
