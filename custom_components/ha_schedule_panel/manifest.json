@@ -2,9 +2,9 @@
   "domain": "ha_schedule_panel",
   "name": "HA Schedule Panel",
   "version": "1.0.0",
-  "documentation": "https://github.com/yourusername/ha-schedule-panel",
+  "documentation": "https://github.com/TiSocks/ha-schedule-panel",
   "dependencies": ["http", "frontend"],
-  "codeowners": ["@yourusername"],
+  "codeowners": ["@TiSocks"],
   "requirements": [],
   "iot_class": "calculated"
 }
