@@ -3,7 +3,8 @@
 A beautiful, fully interactive, 7-day calendar schedule panel for Home Assistant. 
 It aggregates all of your schedule helpers and automations into a single, color-coded grid interface that mimics modern calendar applications.
 
-![Screenshot](https://my.home-assistant.io/badges/hacs_custom.svg)
+<img width="1798" height="1000" alt="image" src="https://github.com/user-attachments/assets/0db177dd-6141-4d85-a4d5-250caf8730d3" />
+
 
 ## Features
 - **Unified 7-Day Grid**: Instantly see all of your Home Assistant `schedule` entities perfectly aligned by time.
