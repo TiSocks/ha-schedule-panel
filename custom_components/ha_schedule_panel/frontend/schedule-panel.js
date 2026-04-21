@@ -335,8 +335,8 @@ class SchedulePanel extends HTMLElement {
                     const borderStyle = `border-left: 4px solid ${block.color};`;
                     const timeText = `${block.start} - ${block.end}`;
                     return `
-                    <div class="calendar-event" style="top: ${block.topPct}%; height: ${block.heightPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px); background-color: ${block.color}D9; ${borderStyle}" onclick="this.getRootNode().host.editSchedule('${block.entityId}')">
-                        <div class="event-title"><ha-icon icon="${block.icon}"></ha-icon> ${block.name}</div>
+                    <div class="calendar-event" title="${block.name} (${timeText})" style="top: ${block.topPct}%; height: ${block.heightPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px); background-color: ${block.color}D9; ${borderStyle}" onclick="this.getRootNode().host.editSchedule('${block.entityId}')">
+                        <div class="event-title"><ha-icon icon="${block.icon}"></ha-icon> <span>${block.name}</span></div>
                         <div class="event-time">${timeText}</div>
                     </div>
                     `;
@@ -670,10 +670,9 @@ class SchedulePanel extends HTMLElement {
             font-weight: 600;
             font-size: 12px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 4px;
-            white-space: nowrap;
-            text-overflow: ellipsis;
+            word-break: break-word;
             overflow: hidden;
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
             line-height: 1.2;
@@ -683,6 +682,7 @@ class SchedulePanel extends HTMLElement {
             --mdc-icon-size: 14px;
             color: white;
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            flex-shrink: 0;
         }
 
         .event-time {
