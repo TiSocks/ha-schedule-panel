@@ -10,6 +10,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "ha_schedule_panel"
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the component."""
     return True
