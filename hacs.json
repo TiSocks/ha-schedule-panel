@@ -1,6 +1,6 @@
 {
   "name": "HA Schedule Panel",
   "render_readme": true,
-  "homeassistant": "2023.10.0"
+  "homeassistant": "2023.10.0",
   "category": "plugin"
 }
