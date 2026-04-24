@@ -1,7 +1,7 @@
 {
   "domain": "ha_schedule_panel",
   "name": "HA Schedule Panel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/TiSocks/ha-schedule-panel",
   "dependencies": ["http", "frontend"],
   "codeowners": ["@TiSocks"],
