@@ -1,12 +1,12 @@
 {
   "domain": "ha_schedule_panel",
   "name": "HA Schedule Panel",
-  "version": "1.0.1",
-  "documentation": "https://github.com/TiSocks/ha-schedule-panel",
-  "issue_tracker": "https://github.com/TiSocks/ha-schedule-panel/issues",
-  "dependencies": ["http", "frontend"],
   "codeowners": ["@TiSocks"],
   "config_flow": true,
-  "requirements": [],
+  "dependencies": ["http", "frontend"],
+  "documentation": "https://github.com/TiSocks/ha-schedule-panel",
   "iot_class": "calculated"
+  "issue_tracker": "https://github.com/TiSocks/ha-schedule-panel/issues",
+  "requirements": [],
+  "version": "1.0.1",
 }
