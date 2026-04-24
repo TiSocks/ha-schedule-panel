@@ -1,5 +1,8 @@
-name: HACS Validation
-
+- name: HACS Validation
+  uses: hacs/action@22.5.0
+        with:
+          category: "integration" # Add this line
+        
 on:
   push:
     branches:
