@@ -1,6 +1,7 @@
 """The HA Schedule Panel integration."""
 import os
 import logging
+import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.http import StaticPathConfig
