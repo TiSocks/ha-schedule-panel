@@ -3,6 +3,7 @@
   "name": "HA Schedule Panel",
   "version": "1.0.1",
   "documentation": "https://github.com/TiSocks/ha-schedule-panel",
+  "issue_tracker": "https://github.com/TiSocks/ha-schedule-panel/issues",
   "dependencies": ["http", "frontend"],
   "codeowners": ["@TiSocks"],
   "config_flow": true,
