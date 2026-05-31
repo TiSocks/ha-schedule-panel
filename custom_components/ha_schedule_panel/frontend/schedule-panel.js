@@ -443,6 +443,18 @@ class SchedulePanel extends HTMLElement {
           const scheduleObj = this._schedules.find(s => s.entity_id === entityId);
           const scheduleId = entityId.split('.')[1];
           
+          const normalizeTimeStr = (timeStr) => {
+              if (!timeStr) return timeStr;
+              if (timeStr.startsWith("23:59:59")) {
+                  return "24:00:00";
+              }
+              const dotIdx = timeStr.indexOf('.');
+              if (dotIdx !== -1) {
+                  return timeStr.substring(0, dotIdx);
+              }
+              return timeStr;
+          };
+          
           const daysOfWeekKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
           const updatedConfig = {};
           
@@ -453,8 +465,8 @@ class SchedulePanel extends HTMLElement {
                       return { from: newStartStr, to: formattedEnd };
                   }
                   return {
-                      from: block.from || block.start,
-                      to: block.to || block.end
+                      from: normalizeTimeStr(block.from || block.start),
+                      to: normalizeTimeStr(block.to || block.end)
                   };
               });
           });
@@ -640,8 +652,20 @@ class SchedulePanel extends HTMLElement {
                 const dayBlocks = blocks[dayKey] || [];
                 
                 dayBlocks.forEach((block, blockIndex) => {
-                    const start = block.from || block.start;
-                    const end = block.to || block.end;
+                    const normalizeTimeStr = (timeStr) => {
+                        if (!timeStr) return timeStr;
+                        if (timeStr.startsWith("23:59:59")) {
+                            return "24:00:00";
+                        }
+                        const dotIdx = timeStr.indexOf('.');
+                        if (dotIdx !== -1) {
+                            return timeStr.substring(0, dotIdx);
+                        }
+                        return timeStr;
+                    };
+
+                    const start = normalizeTimeStr(block.from || block.start);
+                    const end = normalizeTimeStr(block.to || block.end);
                     if (!start || !end) return;
                     
                     const startParts = start.split(':');
