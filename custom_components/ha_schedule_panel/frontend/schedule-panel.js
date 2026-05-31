@@ -7,6 +7,8 @@ class SchedulePanel extends HTMLElement {
     this._automations = [];
     this._hasFetchedDetails = false;
     this._zoomLevel = 0.5;
+    this._dragState = null;
+    this._wasDragging = false;
   }
 
   zoomIn() {
@@ -19,6 +21,242 @@ class SchedulePanel extends HTMLElement {
   zoomOut() {
       if (this._zoomLevel > 0.5) {
           this._zoomLevel -= 0.25;
+          this.render();
+      }
+  }
+
+  connectedCallback() {
+      this._boundMouseMove = this._onMouseMove.bind(this);
+      this._boundMouseUp = this._onMouseUp.bind(this);
+      this._boundTouchMove = this._onTouchMove.bind(this);
+      this._boundTouchEnd = this._onTouchEnd.bind(this);
+
+      this.shadowRoot.addEventListener('mousedown', this._onMouseDown.bind(this));
+      this.shadowRoot.addEventListener('touchstart', this._onTouchStart.bind(this), { passive: false });
+      this.shadowRoot.addEventListener('click', this._onClick.bind(this));
+
+      window.addEventListener('mousemove', this._boundMouseMove);
+      window.addEventListener('mouseup', this._boundMouseUp);
+      window.addEventListener('touchmove', this._boundTouchMove, { passive: false });
+      window.addEventListener('touchend', this._boundTouchEnd);
+  }
+
+  disconnectedCallback() {
+      window.removeEventListener('mousemove', this._boundMouseMove);
+      window.removeEventListener('mouseup', this._boundMouseUp);
+      window.removeEventListener('touchmove', this._boundTouchMove);
+      window.removeEventListener('touchend', this._boundTouchEnd);
+  }
+
+  showToast(message) {
+      this.dispatchEvent(new CustomEvent("hass-notification", {
+          detail: { message },
+          bubbles: true,
+          composed: true
+      }));
+  }
+
+  _onMouseDown(e) {
+      this._startDrag(e.clientX, e.clientY, e.target);
+  }
+
+  _onTouchStart(e) {
+      if (e.touches.length > 0) {
+          const target = e.touches[0].target;
+          if (this._startDrag(e.touches[0].clientX, e.touches[0].clientY, target)) {
+              e.preventDefault();
+          }
+      }
+  }
+
+  _onClick(e) {
+      const eventEl = e.target.closest('.calendar-event');
+      if (eventEl && !eventEl.classList.contains('automation') && !this._wasDragging) {
+          this.editSchedule(eventEl.dataset.entityId);
+      }
+  }
+
+  _startDrag(clientX, clientY, target) {
+      const handle = target.closest('.resize-handle');
+      const eventEl = target.closest('.calendar-event');
+      
+      if (!eventEl || eventEl.classList.contains('automation')) {
+          return false;
+      }
+      
+      let action = 'move';
+      if (handle) {
+          action = handle.classList.contains('top') ? 'resize-top' : 'resize-bottom';
+      }
+      
+      const entityId = eventEl.dataset.entityId;
+      const dayKey = eventEl.dataset.day;
+      const blockIndex = parseInt(eventEl.dataset.blockIndex, 10);
+      
+      if (!entityId || !dayKey || isNaN(blockIndex)) {
+          return false;
+      }
+      
+      this._dragState = {
+          action,
+          entityId,
+          dayKey,
+          blockIndex,
+          startY: clientY,
+          initialTopPct: parseFloat(eventEl.dataset.topPct),
+          initialHeightPct: parseFloat(eventEl.dataset.heightPct),
+          initialStartMins: parseInt(eventEl.dataset.startMins, 10),
+          initialEndMins: parseInt(eventEl.dataset.endMins, 10),
+          dragEl: eventEl,
+          isDragging: false
+      };
+      
+      this._wasDragging = false;
+      return true;
+  }
+
+  _onMouseMove(e) {
+      if (!this._dragState) return;
+      this._updateDrag(e.clientY);
+  }
+
+  _onTouchMove(e) {
+      if (!this._dragState) return;
+      if (e.touches.length > 0) {
+          this._updateDrag(e.touches[0].clientY);
+          e.preventDefault();
+      }
+  }
+
+  _updateDrag(clientY) {
+      const state = this._dragState;
+      const deltaY = clientY - state.startY;
+      
+      // Calculate delta minutes (1 minute = zoomLevel pixels)
+      let deltaMins = Math.round(deltaY / this._zoomLevel);
+      
+      // Snap to 15 minutes
+      deltaMins = Math.round(deltaMins / 15) * 15;
+      
+      if (deltaMins !== 0) {
+          state.isDragging = true;
+          this._wasDragging = true;
+      }
+      
+      let startMins = state.initialStartMins;
+      let endMins = state.initialEndMins;
+      
+      if (state.action === 'resize-top') {
+          startMins = state.initialStartMins + deltaMins;
+          startMins = Math.max(0, Math.min(startMins, endMins - 15));
+      } else if (state.action === 'resize-bottom') {
+          endMins = state.initialEndMins + deltaMins;
+          endMins = Math.max(startMins + 15, Math.min(endMins, 1440));
+      } else if (state.action === 'move') {
+          const duration = state.initialEndMins - state.initialStartMins;
+          startMins = state.initialStartMins + deltaMins;
+          endMins = startMins + duration;
+          
+          if (startMins < 0) {
+              startMins = 0;
+              endMins = duration;
+          } else if (endMins > 1440) {
+              endMins = 1440;
+              startMins = 1440 - duration;
+          }
+      }
+      
+      // Update visual style
+      const topPct = (startMins / 1440) * 100;
+      const heightPct = ((endMins - startMins) / 1440) * 100;
+      
+      state.dragEl.style.top = `${topPct}%`;
+      state.dragEl.style.height = `${heightPct}%`;
+      
+      const formatTimeStr = (mins) => {
+          const h = Math.floor(mins / 60).toString().padStart(2, '0');
+          const m = (mins % 60).toString().padStart(2, '0');
+          return `${h}:${m}`;
+      };
+      
+      const timeText = `${formatTimeStr(startMins)} - ${formatTimeStr(endMins)}`;
+      state.dragEl.title = `${state.dragEl.dataset.name} (${timeText})`;
+      
+      const timeEl = state.dragEl.querySelector('.event-time');
+      if (timeEl) {
+          timeEl.textContent = timeText;
+      }
+      
+      state.currentStartMins = startMins;
+      state.currentEndMins = endMins;
+  }
+
+  _onMouseUp(e) {
+      if (!this._dragState) return;
+      this._endDrag();
+  }
+
+  _onTouchEnd(e) {
+      if (!this._dragState) return;
+      this._endDrag();
+  }
+
+  async _endDrag() {
+      const state = this._dragState;
+      this._dragState = null;
+      
+      if (!state.isDragging) {
+          return;
+      }
+      
+      const { entityId, dayKey, blockIndex, currentStartMins, currentEndMins } = state;
+      
+      if (currentStartMins === state.initialStartMins && currentEndMins === state.initialEndMins) {
+          return;
+      }
+      
+      const formatTimeStr = (mins) => {
+          const h = Math.floor(mins / 60).toString().padStart(2, '0');
+          const m = (mins % 60).toString().padStart(2, '0');
+          return `${h}:${m}:00`;
+      };
+      
+      const newStartStr = formatTimeStr(currentStartMins);
+      const formattedEnd = currentEndMins === 1440 ? "00:00:00" : formatTimeStr(currentEndMins);
+      
+      try {
+          const scheduleObj = this._schedules.find(s => s.entity_id === entityId);
+          const scheduleId = entityId.split('.')[1];
+          
+          const daysOfWeekKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          const updatedConfig = {};
+          
+          daysOfWeekKeys.forEach(day => {
+              const blocks = this._scheduleDetails[entityId]?.[day] || [];
+              updatedConfig[day] = blocks.map((block, idx) => {
+                  if (day === dayKey && idx === blockIndex) {
+                      return { from: newStartStr, to: formattedEnd };
+                  }
+                  return {
+                      from: block.from || block.start,
+                      to: block.to || block.end
+                  };
+              });
+          });
+          
+          await this._hass.connection.sendMessagePromise({
+              type: 'schedule/update',
+              schedule_id: scheduleId,
+              name: scheduleObj.attributes.friendly_name || scheduleId,
+              icon: scheduleObj.attributes.icon || 'mdi:calendar-clock',
+              ...updatedConfig
+          });
+          
+          this.showToast(`Updated schedule successfully`);
+          this.fetchScheduleDetails();
+      } catch (err) {
+          console.error("Failed to update schedule helper configuration.", err);
+          this.showToast(`Failed to update schedule: ${err.message || 'Entity is read-only (YAML configuration)'}`);
           this.render();
       }
   }
@@ -186,7 +424,7 @@ class SchedulePanel extends HTMLElement {
                 const dayKey = day.toLowerCase();
                 const dayBlocks = blocks[dayKey] || [];
                 
-                dayBlocks.forEach(block => {
+                dayBlocks.forEach((block, blockIndex) => {
                     const start = block.from || block.start;
                     const end = block.to || block.end;
                     if (!start || !end) return;
@@ -207,7 +445,8 @@ class SchedulePanel extends HTMLElement {
                     dailyBlocks[dayKey].push({
                         name, icon, color, topPct, heightPct, startMins, endMins,
                         start: start.substring(0, 5), end: end.substring(0, 5),
-                        entityId
+                        entityId,
+                        blockIndex
                     });
                 });
             });
@@ -335,9 +574,21 @@ class SchedulePanel extends HTMLElement {
                     const borderStyle = `border-left: 4px solid ${block.color};`;
                     const timeText = `${block.start} - ${block.end}`;
                     return `
-                    <div class="calendar-event" title="${block.name} (${timeText})" style="top: ${block.topPct}%; height: ${block.heightPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px); background-color: ${block.color}D9; ${borderStyle}" onclick="this.getRootNode().host.editSchedule('${block.entityId}')">
+                    <div class="calendar-event" 
+                         data-entity-id="${block.entityId}" 
+                         data-day="${dayKey}" 
+                         data-block-index="${block.blockIndex}"
+                         data-top-pct="${block.topPct}"
+                         data-height-pct="${block.heightPct}"
+                         data-start-mins="${block.startMins}"
+                         data-end-mins="${block.endMins}"
+                         data-name="${block.name}"
+                         title="${block.name} (${timeText})" 
+                         style="top: ${block.topPct}%; height: ${block.heightPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px); background-color: ${block.color}D9; ${borderStyle}">
+                        <div class="resize-handle top"></div>
                         <div class="event-title"><ha-icon icon="${block.icon}"></ha-icon> <span>${block.name}</span></div>
                         <div class="event-time">${timeText}</div>
+                        <div class="resize-handle bottom"></div>
                     </div>
                     `;
                 }
@@ -617,7 +868,41 @@ class SchedulePanel extends HTMLElement {
             flex-direction: column;
             gap: 2px;
             min-height: 20px; /* Prevent tiny blocks from breaking */
-            cursor: pointer;
+            cursor: grab;
+        }
+
+        .calendar-event:active {
+            cursor: grabbing;
+        }
+
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 8px;
+            cursor: ns-resize;
+            z-index: 10;
+        }
+
+        .resize-handle.top {
+            top: 0;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+        }
+
+        .resize-handle.bottom {
+            bottom: 0;
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 6px;
+        }
+
+        /* Hover effect on handles to make them visible and feel premium */
+        .calendar-event:hover .resize-handle {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .calendar-event:hover .resize-handle:hover {
+            background-color: rgba(255, 255, 255, 0.4);
         }
 
         .calendar-event.automation {
