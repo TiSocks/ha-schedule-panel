@@ -540,44 +540,60 @@ class SchedulePanel extends HTMLElement {
 
   async fetchAutomations() {
       if (!this._hass) return;
+      console.log("[Schedule Panel Debug] Starting fetchAutomations. Found automation entities:", 
+          Object.keys(this._hass.states).filter(id => id.startsWith('automation.')));
       try {
           const automationEntities = Object.keys(this._hass.states).filter(id => id.startsWith('automation.'));
           const promises = automationEntities.map(async (entityId) => {
               try {
                   const stateObj = this._hass.states[entityId];
+                  console.log(`[Schedule Panel Debug] Requesting config for: ${entityId}`);
                   const response = await this._hass.connection.sendMessagePromise({
                       type: 'automation/config',
                       entity_id: entityId
                   });
+                  console.log(`[Schedule Panel Debug] Response for ${entityId}:`, response);
                   if (response) {
                       const config = response.config || response.raw_config || response;
-                      if (config && config.trigger) {
+                      console.log(`[Schedule Panel Debug] Resolved config for ${entityId}:`, config);
+                      const rawTriggers = config ? (config.trigger || config.triggers) : null;
+                      if (config && rawTriggers) {
                           return {
                               alias: stateObj.attributes.friendly_name || config.alias || entityId.split('.')[1],
-                              trigger: config.trigger,
+                              trigger: rawTriggers,
                               state: stateObj.state
                           };
+                      } else {
+                          console.log(`[Schedule Panel Debug] Automation ${entityId} does not have trigger/triggers in config:`, config);
                       }
                   }
               } catch (err) {
-                  // Silent catch for individual automations that might fail to return config
+                  console.error(`[Schedule Panel Debug] Failed to fetch config for ${entityId}:`, err);
               }
               return null;
           });
 
           const results = await Promise.all(promises);
           const validAutomations = results.filter(auto => auto !== null);
+          console.log("[Schedule Panel Debug] Successfully resolved configs for:", validAutomations.map(a => a.alias));
 
           this._automations = validAutomations.filter(auto => {
-              if (auto.state === 'off') return false; // Skip disabled automations
+              if (auto.state === 'off') {
+                  console.log(`[Schedule Panel Debug] Filtering out disabled automation: ${auto.alias}`);
+                  return false; 
+              }
               if (!auto.trigger) return false;
               const triggers = Array.isArray(auto.trigger) ? auto.trigger : [auto.trigger];
-              return triggers.some(t => t.platform === 'time');
+              const hasTimeTrigger = triggers.some(t => t.platform === 'time' || t.trigger === 'time');
+              console.log(`[Schedule Panel Debug] Automation ${auto.alias} trigger check (hasTimeTrigger: ${hasTimeTrigger}):`, triggers);
+              return hasTimeTrigger;
           });
+          
+          console.log("[Schedule Panel Debug] Active time-triggered automations to render:", this._automations);
 
           this.render();
       } catch (err) {
-          console.log("Could not fetch automations.", err);
+          console.error("[Schedule Panel Debug] Global error in fetchAutomations:", err);
       }
   }
 
@@ -723,7 +739,7 @@ class SchedulePanel extends HTMLElement {
             const triggers = Array.isArray(auto.trigger) ? auto.trigger : [auto.trigger];
             
             triggers.forEach(t => {
-                if (t.platform === 'time' && t.at) {
+                if ((t.platform === 'time' || t.trigger === 'time') && t.at) {
                     let times = Array.isArray(t.at) ? t.at : [t.at];
                     times.forEach(timeStr => {
                         let actualTime = timeStr;
