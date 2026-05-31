@@ -539,17 +539,43 @@ class SchedulePanel extends HTMLElement {
   }
 
   async fetchAutomations() {
+      if (!this._hass) return;
       try {
-          // Fetch automation config from REST API via hass object
-          const automations = await this._hass.callApi('GET', 'config/automation/config');
-          if (Array.isArray(automations)) {
-              this._automations = automations.filter(auto => {
-                  if (!auto.trigger) return false;
-                  const triggers = Array.isArray(auto.trigger) ? auto.trigger : [auto.trigger];
-                  return triggers.some(t => t.platform === 'time');
-              });
-              this.render();
-          }
+          const automationEntities = Object.keys(this._hass.states).filter(id => id.startsWith('automation.'));
+          const promises = automationEntities.map(async (entityId) => {
+              try {
+                  const stateObj = this._hass.states[entityId];
+                  const response = await this._hass.connection.sendMessagePromise({
+                      type: 'automation/config',
+                      entity_id: entityId
+                  });
+                  if (response) {
+                      const config = response.raw_config || response;
+                      if (config && config.trigger) {
+                          return {
+                              alias: stateObj.attributes.friendly_name || config.alias || entityId.split('.')[1],
+                              trigger: config.trigger,
+                              state: stateObj.state
+                          };
+                      }
+                  }
+              } catch (err) {
+                  // Silent catch for individual automations that might fail to return config
+              }
+              return null;
+          });
+
+          const results = await Promise.all(promises);
+          const validAutomations = results.filter(auto => auto !== null);
+
+          this._automations = validAutomations.filter(auto => {
+              if (auto.state === 'off') return false; // Skip disabled automations
+              if (!auto.trigger) return false;
+              const triggers = Array.isArray(auto.trigger) ? auto.trigger : [auto.trigger];
+              return triggers.some(t => t.platform === 'time');
+          });
+
+          this.render();
       } catch (err) {
           console.log("Could not fetch automations.", err);
       }
