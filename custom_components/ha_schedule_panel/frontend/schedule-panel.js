@@ -550,7 +550,7 @@ class SchedulePanel extends HTMLElement {
                       entity_id: entityId
                   });
                   if (response) {
-                      const config = response.raw_config || response;
+                      const config = response.config || response.raw_config || response;
                       if (config && config.trigger) {
                           return {
                               alias: stateObj.attributes.friendly_name || config.alias || entityId.split('.')[1],
