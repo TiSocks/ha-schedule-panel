@@ -34,8 +34,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     ])
 
+    from homeassistant.loader import async_get_integration
+    integration = await async_get_integration(hass, DOMAIN)
+    version = integration.version
+
     # Register the custom panel
-    _LOGGER.info("Registering HA Schedule Panel in sidebar")
+    _LOGGER.info("Registering HA Schedule Panel in sidebar with version %s", version)
     frontend.async_register_built_in_panel(
         hass,
         component_name="custom",
@@ -46,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config={
             "_panel_custom": {
                 "name": "schedule-panel",
-                "module_url": f"/{DOMAIN}_static/schedule-panel.js",
+                "module_url": f"/{DOMAIN}_static/schedule-panel.js?v={version}",
                 "embed_iframe": False,
                 "trust_external": False,
             }
