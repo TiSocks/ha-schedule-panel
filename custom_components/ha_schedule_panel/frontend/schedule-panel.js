@@ -805,8 +805,14 @@ class SchedulePanel extends HTMLElement {
                 if (block.isAutomation) {
                     const labelText = block.triggerId ? `${block.name} (${block.triggerId})` : block.name;
                     return `
-                    <div class="calendar-event automation" style="top: ${block.topPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px);">
-                        <div class="event-title" title="${labelText} @ ${block.start}"><ha-icon icon="${block.icon}"></ha-icon> ${labelText}</div>
+                    <div class="calendar-event automation" style="top: ${block.topPct}%; left: ${block.leftPct}%; width: calc(${block.widthPct}% - 2px); --automation-color: #f43f5e;">
+                        <div class="automation-line"></div>
+                        <div class="automation-flag" title="${labelText} @ ${block.start}">
+                            <span class="pulse-dot"></span>
+                            <ha-icon icon="${block.icon}"></ha-icon>
+                            <span class="time-badge">${block.start}</span>
+                            <span class="flag-title">${block.name}</span>
+                        </div>
                     </div>
                     `;
                 } else {
@@ -1147,47 +1153,113 @@ class SchedulePanel extends HTMLElement {
         .calendar-event.automation {
             background-color: transparent !important;
             border: none !important;
-            border-top: 2px dashed #ef4444 !important;
-            color: var(--primary-text-color);
             overflow: visible;
             box-shadow: none;
             backdrop-filter: none;
             height: 0 !important;
             min-height: 0 !important;
-            z-index: 10;
+            z-index: 20;
             cursor: default;
+            pointer-events: none;
         }
 
-        .calendar-event.automation .event-title {
-            color: #ef4444;
-            background: var(--card-background-color);
-            padding: 2px 6px;
-            border-radius: 12px;
-            border: 1px solid #ef4444;
+        .automation-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--automation-color, #f43f5e) 60%, rgba(244, 63, 94, 0.1) 100%);
+            box-shadow: 0 0 6px var(--automation-color, #f43f5e);
+            border-radius: 1px;
+        }
+
+        .automation-flag {
+            pointer-events: auto;
             display: inline-flex;
+            align-items: center;
+            gap: 6px;
             position: absolute;
             top: -12px;
             left: 4px;
+            background-color: var(--card-background-color, var(--primary-background-color));
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(244, 63, 94, 0.6);
+            border-radius: 20px;
+            padding: 2px 8px;
+            color: var(--primary-text-color);
             font-size: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            max-width: calc(100% - 8px);
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
+            white-space: nowrap;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .calendar-event.automation .event-title ha-icon {
-            color: #ef4444;
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--automation-color, #f43f5e);
+            border-radius: 50%;
+            position: relative;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .pulse-dot::after {
+            content: "";
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            border: 1.5px solid var(--automation-color, #f43f5e);
+            animation: automation-pulse 2s infinite ease-out;
+        }
+
+        @keyframes automation-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .automation-flag ha-icon {
             --mdc-icon-size: 12px;
+            color: var(--automation-color, #f43f5e);
+            flex-shrink: 0;
+        }
+
+        .time-badge {
+            background-color: var(--automation-color, #f43f5e);
+            color: #fff;
+            padding: 0 4px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 9px;
+            flex-shrink: 0;
+        }
+
+        .flag-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .automation-flag:hover {
+            transform: translateY(-2px) scale(1.03);
+            background-color: var(--card-background-color, var(--primary-background-color));
+            border-color: rgba(244, 63, 94, 0.9);
+            box-shadow: 0 6px 16px rgba(244, 63, 94, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+            z-index: 100;
         }
 
         .calendar-event:hover {
             z-index: 15; /* Bring to front when hovering overlapping blocks */
             transform: scale(1.02);
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-
-        .calendar-event.automation:hover {
-            z-index: 25;
-            transform: scale(1.02);
-            box-shadow: none;
         }
 
         .event-title {
