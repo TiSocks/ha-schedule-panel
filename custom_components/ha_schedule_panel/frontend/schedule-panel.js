@@ -245,14 +245,19 @@ class SchedulePanel extends HTMLElement {
           const startParts = start.split(':');
           const endParts = end.split(':');
           const startMins = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
-          const endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+          let endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+          
+          if (end === "00:00" || (endParts[0] === "00" && endParts[1] === "00")) {
+              endMins = 1440;
+          }
           
           if (startMins >= endMins) {
               this.showToast('For all ranges, start time must be before end time');
               return;
           }
           
-          ranges.push({ from: `${start}:00`, to: `${end}:00` });
+          const formattedEnd = endMins === 1440 ? "24:00:00" : `${end}:00`;
+          ranges.push({ from: `${start}:00`, to: formattedEnd });
       }
       
       if (ranges.length === 0) {
@@ -432,7 +437,7 @@ class SchedulePanel extends HTMLElement {
       };
       
       const newStartStr = formatTimeStr(currentStartMins);
-      const formattedEnd = currentEndMins === 1440 ? "00:00:00" : formatTimeStr(currentEndMins);
+      const formattedEnd = currentEndMins === 1440 ? "24:00:00" : formatTimeStr(currentEndMins);
       
       try {
           const scheduleObj = this._schedules.find(s => s.entity_id === entityId);
