@@ -13,7 +13,7 @@ It aggregates all of your schedule helpers and automations into a single, color-
   - **Shift Blocks**: Drag the center of a block to shift the entire time slot while preserving its duration.
   - **15-Minute Snapping**: Times automatically snap to 15-minute intervals for clean, precise adjustments.
   - **Auto-Persist**: Changes are saved instantly to Home Assistant using the WebSocket API.
-- **Inline Schedule Creation**: Click the "New Schedule" button to open a custom, modern modal dialog directly in your browser. Configure Name, Icon, Start/End times, and select days of the week using circular toggle buttons to create schedules instantly without navigating away.
+- **Inline Schedule Creation with Multiple Time Ranges**: Click the "New Schedule" button to open a custom, modern modal dialog directly in your browser. Configure Name, Icon, select days of the week, and add **multiple "on" time ranges** (using a dynamic `+` button) to create advanced, recurring weekly schedules instantly without navigating away.
 - **Click-to-Detailed-Settings**: Click on any schedule block (without dragging) to open the standard Home Assistant settings dialog.
 - **Dynamic Updates**: Modifying a schedule instantly refreshes the panel so your view is never out of sync!
 - **Automation Timers**: Highly visual red-dashed markers display any automations triggered by a specific time.

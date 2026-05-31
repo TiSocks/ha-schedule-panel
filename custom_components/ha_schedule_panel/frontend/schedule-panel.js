@@ -110,6 +110,24 @@ class SchedulePanel extends HTMLElement {
           this._onCreateScheduleSubmit();
           return;
       }
+
+      const addRangeBtn = e.target.closest('#add-range-btn');
+      if (addRangeBtn) {
+          e.preventDefault();
+          this._addTimeRangeRow();
+          return;
+      }
+
+      const removeRangeBtn = e.target.closest('.remove-range-btn');
+      if (removeRangeBtn) {
+          e.preventDefault();
+          const row = removeRangeBtn.closest('.time-range-row');
+          if (row) {
+              row.remove();
+              this._updateRemoveRangeButtons();
+          }
+          return;
+      }
   }
 
   _openNewScheduleModal() {
@@ -118,8 +136,13 @@ class SchedulePanel extends HTMLElement {
           // Reset form fields
           this.shadowRoot.getElementById('schedule-name').value = '';
           this.shadowRoot.getElementById('schedule-icon').value = 'mdi:calendar-clock';
-          this.shadowRoot.getElementById('schedule-start').value = '08:00';
-          this.shadowRoot.getElementById('schedule-end').value = '17:00';
+          
+          const container = this.shadowRoot.getElementById('time-ranges-container');
+          if (container) {
+              container.innerHTML = '';
+              container.appendChild(this._createTimeRangeRow("08:00", "17:00"));
+              this._updateRemoveRangeButtons();
+          }
           
           // Default selection: Mon-Fri selected, Sat-Sun unselected
           const dayBtns = this.shadowRoot.querySelectorAll('.day-btn');
@@ -143,16 +166,62 @@ class SchedulePanel extends HTMLElement {
       }
   }
 
+  _createTimeRangeRow(start = "08:00", end = "17:00") {
+      const row = document.createElement('div');
+      row.className = 'time-range-row';
+      row.style = 'display: flex; gap: 12px; align-items: center; margin-bottom: 8px;';
+      row.innerHTML = `
+          <div style="flex: 1;">
+              <input type="time" class="schedule-start" value="${start}" required style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color); background-color: var(--primary-background-color); color: var(--primary-text-color); font-family: inherit;">
+          </div>
+          <span style="color: var(--secondary-text-color);">to</span>
+          <div style="flex: 1;">
+              <input type="time" class="schedule-end" value="${end}" required style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color); background-color: var(--primary-background-color); color: var(--primary-text-color); font-family: inherit;">
+          </div>
+          <button type="button" class="remove-range-btn">&times;</button>
+      `;
+      return row;
+  }
+
+  _addTimeRangeRow() {
+      const container = this.shadowRoot.getElementById('time-ranges-container');
+      if (container) {
+          let lastEnd = "17:00";
+          const rows = container.querySelectorAll('.time-range-row');
+          if (rows.length > 0) {
+              lastEnd = rows[rows.length - 1].querySelector('.schedule-end').value;
+          }
+          const parts = lastEnd.split(':');
+          let h = parseInt(parts[0], 10);
+          let newStartH = (h + 1) % 24;
+          let newEndH = (h + 2) % 24;
+          const format = (val) => val.toString().padStart(2, '0');
+          const nextStart = `${format(newStartH)}:00`;
+          const nextEnd = `${format(newEndH)}:00`;
+          
+          container.appendChild(this._createTimeRangeRow(nextStart, nextEnd));
+          this._updateRemoveRangeButtons();
+      }
+  }
+
+  _updateRemoveRangeButtons() {
+      const container = this.shadowRoot.getElementById('time-ranges-container');
+      if (!container) return;
+      const rows = container.querySelectorAll('.time-range-row');
+      rows.forEach(row => {
+          const btn = row.querySelector('.remove-range-btn');
+          if (btn) {
+              btn.style.display = rows.length > 1 ? 'flex' : 'none';
+          }
+      });
+  }
+
   async _onCreateScheduleSubmit() {
       const nameInput = this.shadowRoot.getElementById('schedule-name');
       const iconInput = this.shadowRoot.getElementById('schedule-icon');
-      const startInput = this.shadowRoot.getElementById('schedule-start');
-      const endInput = this.shadowRoot.getElementById('schedule-end');
       
       const name = nameInput ? nameInput.value.trim() : '';
       const icon = iconInput ? iconInput.value.trim() : 'mdi:calendar-clock';
-      const start = startInput ? startInput.value : '';
-      const end = endInput ? endInput.value : '';
       
       if (!name) {
           this.showToast('Please enter a schedule name');
@@ -165,18 +234,31 @@ class SchedulePanel extends HTMLElement {
           return;
       }
       
-      const startParts = start.split(':');
-      const endParts = end.split(':');
-      const startMins = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
-      const endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+      const container = this.shadowRoot.getElementById('time-ranges-container');
+      const rows = container ? container.querySelectorAll('.time-range-row') : [];
+      const ranges = [];
       
-      if (startMins >= endMins) {
-          this.showToast('Start time must be before end time');
-          return;
+      for (let row of rows) {
+          const start = row.querySelector('.schedule-start').value;
+          const end = row.querySelector('.schedule-end').value;
+          
+          const startParts = start.split(':');
+          const endParts = end.split(':');
+          const startMins = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+          const endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+          
+          if (startMins >= endMins) {
+              this.showToast('For all ranges, start time must be before end time');
+              return;
+          }
+          
+          ranges.push({ from: `${start}:00`, to: `${end}:00` });
       }
       
-      const startStr = `${start}:00`;
-      const endStr = `${end}:00`;
+      if (ranges.length === 0) {
+          this.showToast('Please add at least one time range');
+          return;
+      }
       
       const updatedConfig = {};
       const daysOfWeekKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -184,7 +266,7 @@ class SchedulePanel extends HTMLElement {
       daysOfWeekKeys.forEach(day => {
           const btn = this.shadowRoot.querySelector(`.day-btn[data-day="${day}"]`);
           const isSelected = btn && btn.classList.contains('selected');
-          updatedConfig[day] = isSelected ? [{ from: startStr, to: endStr }] : [];
+          updatedConfig[day] = isSelected ? ranges : [];
       });
       
       try {
@@ -1130,8 +1212,22 @@ class SchedulePanel extends HTMLElement {
             margin: 0 0 8px 0;
         }
 
-        .empty-state .subtitle {
+        .remove-range-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
             color: var(--secondary-text-color);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .remove-range-btn:hover {
+            color: var(--error-color, #ef4444);
         }
 
         /* Modal Overlay */
@@ -1357,17 +1453,15 @@ class SchedulePanel extends HTMLElement {
                       <label for="schedule-icon">Icon</label>
                       <input type="text" id="schedule-icon" value="mdi:calendar-clock" placeholder="mdi:calendar-clock">
                   </div>
-                  <div class="form-row">
-                      <div class="form-group">
-                          <label for="schedule-start">Start Time</label>
-                          <input type="time" id="schedule-start" value="08:00" required>
-                      </div>
-                      <div class="form-group">
-                          <label for="schedule-end">End Time</label>
-                          <input type="time" id="schedule-end" value="17:00" required>
-                      </div>
-                  </div>
                   <div class="form-group">
+                      <label>Time Ranges</label>
+                      <div id="time-ranges-container">
+                          <!-- Time range rows will be generated here -->
+                      </div>
+                      <button type="button" class="btn secondary" id="add-range-btn" style="margin-top: 8px; padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                          <ha-icon icon="mdi:plus" style="--mdc-icon-size: 16px;"></ha-icon> Add Time Range
+                      </button>
+                  </div><div class="form-group">
                       <label>Days of the Week</label>
                       <div class="day-selectors">
                           <button type="button" class="day-btn" data-day="monday">M</button>
