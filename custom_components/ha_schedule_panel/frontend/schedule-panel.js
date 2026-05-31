@@ -73,6 +73,134 @@ class SchedulePanel extends HTMLElement {
       const eventEl = e.target.closest('.calendar-event');
       if (eventEl && !eventEl.classList.contains('automation') && !this._wasDragging) {
           this.editSchedule(eventEl.dataset.entityId);
+          return;
+      }
+
+      const newBtn = e.target.closest('#new-schedule-btn');
+      if (newBtn) {
+          e.preventDefault();
+          this._openNewScheduleModal();
+          return;
+      }
+
+      const dayBtn = e.target.closest('.day-btn');
+      if (dayBtn) {
+          e.preventDefault();
+          dayBtn.classList.toggle('selected');
+          return;
+      }
+
+      const cancelBtn = e.target.closest('#modal-cancel-btn');
+      const closeBtn = e.target.closest('#modal-close-btn');
+      if (cancelBtn || closeBtn) {
+          e.preventDefault();
+          this._closeModal();
+          return;
+      }
+
+      if (e.target.id === 'schedule-modal') {
+          e.preventDefault();
+          this._closeModal();
+          return;
+      }
+
+      const submitBtn = e.target.closest('#modal-submit-btn');
+      if (submitBtn) {
+          e.preventDefault();
+          this._onCreateScheduleSubmit();
+          return;
+      }
+  }
+
+  _openNewScheduleModal() {
+      const modal = this.shadowRoot.getElementById('schedule-modal');
+      if (modal) {
+          // Reset form fields
+          this.shadowRoot.getElementById('schedule-name').value = '';
+          this.shadowRoot.getElementById('schedule-icon').value = 'mdi:calendar-clock';
+          this.shadowRoot.getElementById('schedule-start').value = '08:00';
+          this.shadowRoot.getElementById('schedule-end').value = '17:00';
+          
+          // Default selection: Mon-Fri selected, Sat-Sun unselected
+          const dayBtns = this.shadowRoot.querySelectorAll('.day-btn');
+          dayBtns.forEach(btn => {
+              const day = btn.dataset.day;
+              if (day !== 'saturday' && day !== 'sunday') {
+                  btn.classList.add('selected');
+              } else {
+                  btn.classList.remove('selected');
+              }
+          });
+          
+          modal.classList.add('open');
+      }
+  }
+
+  _closeModal() {
+      const modal = this.shadowRoot.getElementById('schedule-modal');
+      if (modal) {
+          modal.classList.remove('open');
+      }
+  }
+
+  async _onCreateScheduleSubmit() {
+      const nameInput = this.shadowRoot.getElementById('schedule-name');
+      const iconInput = this.shadowRoot.getElementById('schedule-icon');
+      const startInput = this.shadowRoot.getElementById('schedule-start');
+      const endInput = this.shadowRoot.getElementById('schedule-end');
+      
+      const name = nameInput ? nameInput.value.trim() : '';
+      const icon = iconInput ? iconInput.value.trim() : 'mdi:calendar-clock';
+      const start = startInput ? startInput.value : '';
+      const end = endInput ? endInput.value : '';
+      
+      if (!name) {
+          this.showToast('Please enter a schedule name');
+          return;
+      }
+      
+      const dayBtns = this.shadowRoot.querySelectorAll('.day-btn.selected');
+      if (dayBtns.length === 0) {
+          this.showToast('Please select at least one day');
+          return;
+      }
+      
+      const startParts = start.split(':');
+      const endParts = end.split(':');
+      const startMins = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+      const endMins = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+      
+      if (startMins >= endMins) {
+          this.showToast('Start time must be before end time');
+          return;
+      }
+      
+      const startStr = `${start}:00`;
+      const endStr = `${end}:00`;
+      
+      const updatedConfig = {};
+      const daysOfWeekKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      daysOfWeekKeys.forEach(day => {
+          const btn = this.shadowRoot.querySelector(`.day-btn[data-day="${day}"]`);
+          const isSelected = btn && btn.classList.contains('selected');
+          updatedConfig[day] = isSelected ? [{ from: startStr, to: endStr }] : [];
+      });
+      
+      try {
+          await this._hass.connection.sendMessagePromise({
+              type: 'schedule/create',
+              name: name,
+              icon: icon || 'mdi:calendar-clock',
+              ...updatedConfig
+          });
+          
+          this.showToast(`Schedule "${name}" created successfully`);
+          this._closeModal();
+          this.fetchScheduleDetails();
+      } catch (err) {
+          console.error("Failed to create schedule helper.", err);
+          this.showToast(`Failed to create schedule: ${err.message || 'Unknown error'}`);
       }
   }
 
@@ -1005,6 +1133,192 @@ class SchedulePanel extends HTMLElement {
         .empty-state .subtitle {
             color: var(--secondary-text-color);
         }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Modal Content */
+        .modal-content {
+            background-color: var(--card-background-color, var(--primary-background-color));
+            border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.1));
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.open .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+            padding-bottom: 12px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--primary-text-color);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--secondary-text-color);
+            padding: 0;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--error-color, #ef4444);
+        }
+
+        /* Form groups */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--secondary-text-color);
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="time"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.2));
+            background-color: var(--primary-background-color);
+            color: var(--primary-text-color);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="time"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* Day Selectors */
+        .day-selectors {
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .day-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.2));
+            background-color: var(--primary-background-color);
+            color: var(--secondary-text-color);
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .day-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .day-btn.selected {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Buttons */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+            padding-top: 16px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn.primary:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn.secondary {
+            background-color: var(--secondary-background-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+        }
+
+        .btn.secondary:hover {
+            background-color: var(--divider-color, rgba(0, 0, 0, 0.05));
+        }
       </style>
 
       <div class="header">
@@ -1013,11 +1327,9 @@ class SchedulePanel extends HTMLElement {
               Schedules
           </div>
           <div class="zoom-controls">
-              <a href="/config/integrations/dashboard/add?domain=schedule" style="text-decoration: none;">
-                  <button class="icon-btn" title="New Schedule" style="padding-left: 12px; padding-right: 12px; gap: 8px;">
-                      <ha-icon icon="mdi:plus"></ha-icon> New Schedule
-                  </button>
-              </a>
+              <button class="icon-btn" id="new-schedule-btn" title="New Schedule" style="padding-left: 12px; padding-right: 12px; gap: 8px;">
+                  <ha-icon icon="mdi:plus"></ha-icon> New Schedule
+              </button>
               <button class="icon-btn" onclick="this.getRootNode().host.zoomOut()" title="Zoom Out">
                   <ha-icon icon="mdi:magnify-minus"></ha-icon>
               </button>
@@ -1028,6 +1340,51 @@ class SchedulePanel extends HTMLElement {
       </div>
       <div class="content">
           ${contentHtml}
+      </div>
+
+      <div id="schedule-modal" class="modal-overlay">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <h2>Create New Schedule</h2>
+                  <button class="close-btn" id="modal-close-btn">&times;</button>
+              </div>
+              <form id="schedule-form" onsubmit="return false;">
+                  <div class="form-group">
+                      <label for="schedule-name">Name</label>
+                      <input type="text" id="schedule-name" required placeholder="e.g. Heating Schedule">
+                  </div>
+                  <div class="form-group">
+                      <label for="schedule-icon">Icon</label>
+                      <input type="text" id="schedule-icon" value="mdi:calendar-clock" placeholder="mdi:calendar-clock">
+                  </div>
+                  <div class="form-row">
+                      <div class="form-group">
+                          <label for="schedule-start">Start Time</label>
+                          <input type="time" id="schedule-start" value="08:00" required>
+                      </div>
+                      <div class="form-group">
+                          <label for="schedule-end">End Time</label>
+                          <input type="time" id="schedule-end" value="17:00" required>
+                      </div>
+                  </div>
+                  <div class="form-group">
+                      <label>Days of the Week</label>
+                      <div class="day-selectors">
+                          <button type="button" class="day-btn" data-day="monday">M</button>
+                          <button type="button" class="day-btn" data-day="tuesday">T</button>
+                          <button type="button" class="day-btn" data-day="wednesday">W</button>
+                          <button type="button" class="day-btn" data-day="thursday">T</button>
+                          <button type="button" class="day-btn" data-day="friday">F</button>
+                          <button type="button" class="day-btn" data-day="saturday">S</button>
+                          <button type="button" class="day-btn" data-day="sunday">S</button>
+                      </div>
+                  </div>
+                  <div class="modal-footer">
+                      <button type="button" class="btn secondary" id="modal-cancel-btn">Cancel</button>
+                      <button type="submit" class="btn primary" id="modal-submit-btn">Create Schedule</button>
+                  </div>
+              </form>
+          </div>
       </div>
     `;
   }
