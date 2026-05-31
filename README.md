@@ -5,14 +5,21 @@ It aggregates all of your schedule helpers and automations into a single, color-
 
 <img width="1798" height="1000" alt="image" src="https://github.com/user-attachments/assets/0db177dd-6141-4d85-a4d5-250caf8730d3" />
 
-
 ## Features
-- **Unified 7-Day Grid**: Instantly see all of your Home Assistant `schedule` entities perfectly aligned by time.
-- **Click-to-Edit**: Click directly on any schedule block to instantly pop open the Home Assistant settings dialog to modify its times.
-- **Instant Creation**: Includes a dedicated "New Schedule" button that jumps you directly into the Home Assistant integration workflow to quickly create new schedules.
+
+- **Unified 7-Day Grid**: Instantly see all of your Home Assistant `schedule` helper entities perfectly aligned by time.
+- **Interactive Drag-and-Drop Editing**: 
+  - **Resize Times**: Drag the top or bottom handles of any schedule block to resize its start and end times directly.
+  - **Shift Blocks**: Drag the center of a block to shift the entire time slot while preserving its duration.
+  - **15-Minute Snapping**: Times automatically snap to 15-minute intervals for clean, precise adjustments.
+  - **Auto-Persist**: Changes are saved instantly to Home Assistant using the WebSocket API.
+- **Inline Schedule Creation**: Click the "New Schedule" button to open a custom, modern modal dialog directly in your browser. Configure Name, Icon, Start/End times, and select days of the week using circular toggle buttons to create schedules instantly without navigating away.
+- **Click-to-Detailed-Settings**: Click on any schedule block (without dragging) to open the standard Home Assistant settings dialog.
 - **Dynamic Updates**: Modifying a schedule instantly refreshes the panel so your view is never out of sync!
 - **Automation Timers**: Highly visual red-dashed markers display any automations triggered by a specific time.
-- **Zero Configuration**: Packaged as a Custom Integration, meaning the panel is registered automatically! **No `configuration.yaml` editing required!**
+- **Zero Configuration**: Packaged as a Custom Integration, meaning the panel is registered automatically. **No `configuration.yaml` editing required!**
+- **Browser Cache Invalidation**: Automatic query-string versioning prevents stale browser caching, ensuring new feature updates are served immediately upon upgrade.
+- **YAML Safety & Error Recovery**: Gracefully intercepts save attempts on read-only (YAML-defined) schedules, showing a notification toast and rolling back the event card visually.
 
 ## Installation via HACS
 
