@@ -506,6 +506,14 @@ class SchedulePanel extends HTMLElement {
         if (JSON.stringify(oldSchedules) !== JSON.stringify(newSchedules)) {
             this.fetchScheduleDetails();
         }
+
+        // Detect if any automation states changed or populated
+        const oldAutomations = Object.values(oldHass.states).filter(state => state.entity_id.startsWith('automation.'));
+        const newAutomations = Object.values(this._hass.states).filter(state => state.entity_id.startsWith('automation.'));
+        
+        if (JSON.stringify(oldAutomations) !== JSON.stringify(newAutomations)) {
+            this.fetchAutomations();
+        }
     }
 
     this.updateSchedules();
@@ -741,7 +749,8 @@ class SchedulePanel extends HTMLElement {
             triggers.forEach(t => {
                 if ((t.platform === 'time' || t.trigger === 'time') && t.at) {
                     let times = Array.isArray(t.at) ? t.at : [t.at];
-                    times.forEach(timeStr => {
+                    times.forEach(timeVal => {
+                        const timeStr = String(timeVal).trim();
                         let actualTime = timeStr;
                         // Handle input_datetime entities
                         if (timeStr.startsWith('input_datetime.')) {
@@ -762,8 +771,18 @@ class SchedulePanel extends HTMLElement {
                             const topPct = (startMins / 1440) * 100;
                             const heightPct = (15 / 1440) * 100;
                             
-                            daysOfWeek.forEach(day => {
-                                dailyBlocks[day.toLowerCase()].push({
+                            let targetDays = daysOfWeek.map(d => d.toLowerCase());
+                            if (t.weekday) {
+                                const weekdays = Array.isArray(t.weekday) ? t.weekday : [t.weekday];
+                                const weekdayShortcuts = weekdays.map(w => String(w).toLowerCase().substring(0, 3));
+                                targetDays = targetDays.filter(day => {
+                                    const dayShort = day.substring(0, 3);
+                                    return weekdayShortcuts.includes(dayShort);
+                                });
+                            }
+                            
+                            targetDays.forEach(day => {
+                                dailyBlocks[day].push({
                                     name, icon: 'mdi:robot-outline', color: '#ef4444',
                                     topPct, heightPct, startMins, endMins,
                                     start: actualTime.substring(0, 5), end: '',
