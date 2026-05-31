@@ -1611,4 +1611,6 @@ class SchedulePanel extends HTMLElement {
   }
 }
 
-customElements.define('schedule-panel', SchedulePanel);
+if (!customElements.get('schedule-panel')) {
+    customElements.define('schedule-panel', SchedulePanel);
+}
